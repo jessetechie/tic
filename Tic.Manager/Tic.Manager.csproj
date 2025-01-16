@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Tic.Engine\Tic.Engine.csproj" />
+      <ProjectReference Include="..\Tic.ResourceAccess\Tic.ResourceAccess.csproj" />
+      <ProjectReference Include="..\Tic.Shared\Tic.Shared.csproj" />
+    </ItemGroup>
+
+</Project>
