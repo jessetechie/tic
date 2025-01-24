@@ -1,14 +1,15 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿using Spectre.Console.Cli;
+using Tic.Client.CommandLine;
+using Tic.Client.CommandLine.Commands;
 
-using Spectre.Console;
+var app = Bootstrapper.BuildCommandApp();
+app.SetDefaultCommand<DefaultCommand>();
+app.Configure(config =>
+{
+    config.PropagateExceptions();
+    config.AddCommand<InteractiveCommand>("interactive")
+        .WithDescription("Start an interactive command line interface.");
+});
 
-Console.WriteLine("Hello, World!");
-
-AnsiConsole.Background = Color.Aqua;
-AnsiConsole.Markup("[bold red]Hello[/] [yellow]World[/]");
-
-AnsiConsole.Markup("[bold yellow on blue]Hello[/]");
-AnsiConsole.Markup("[default on blue]World[/]");
-
-AnsiConsole.Markup("Hello :globe_showing_europe_africa:!");
-
+app.Run(args);
+return 0;

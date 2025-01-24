@@ -156,7 +156,7 @@ public class IntervalResourceAccess : IIntervalResourceAccess, IDatabaseInitiali
 
         return builder;
     }
-
+    
     public async Task Init()
     {
         using var connection = _dataContext.Connect();
