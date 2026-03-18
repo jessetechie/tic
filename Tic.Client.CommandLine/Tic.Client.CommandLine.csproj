@@ -18,6 +18,12 @@
     </ItemGroup>
 
     <ItemGroup>
+      <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+        <_Parameter1>Tic.Client.CommandLine.Tests</_Parameter1>
+      </AssemblyAttribute>
+    </ItemGroup>
+
+    <ItemGroup>
       <ProjectReference Include="..\Tic.Manager\Tic.Manager.csproj" />
     </ItemGroup>
 

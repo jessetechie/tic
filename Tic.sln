@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tic.Shared", "Tic.Shared\Ti
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tic.Engine.Tests", "Tic.Engine.Tests\Tic.Engine.Tests.csproj", "{759A128E-4D0E-43AC-A3CB-F9CFEB289DC7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tic.Client.CommandLine.Tests", "Tic.Client.CommandLine.Tests\Tic.Client.CommandLine.Tests.csproj", "{C1A2B3D4-E5F6-7890-ABCD-EF1234567890}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,10 +59,15 @@ Global
 		{759A128E-4D0E-43AC-A3CB-F9CFEB289DC7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{759A128E-4D0E-43AC-A3CB-F9CFEB289DC7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{759A128E-4D0E-43AC-A3CB-F9CFEB289DC7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C1A2B3D4-E5F6-7890-ABCD-EF1234567890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C1A2B3D4-E5F6-7890-ABCD-EF1234567890}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C1A2B3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C1A2B3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{742BE53E-0E73-4A81-A0B5-BA16F300F6AF} = {A22FAE25-21F3-4B36-A530-A065197A62B1}
 		{D0D190BD-6532-4D02-A323-61626F0E8519} = {A22FAE25-21F3-4B36-A530-A065197A62B1}
 		{759A128E-4D0E-43AC-A3CB-F9CFEB289DC7} = {A22FAE25-21F3-4B36-A530-A065197A62B1}
+		{C1A2B3D4-E5F6-7890-ABCD-EF1234567890} = {A22FAE25-21F3-4B36-A530-A065197A62B1}
 	EndGlobalSection
 EndGlobal
