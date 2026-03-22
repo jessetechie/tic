@@ -34,6 +34,7 @@ public abstract record TimeLogCommand
     public DateOnly Date { get; init; }
     public TimeOnly Time { get; init; }
     public string Category { get; init; } = string.Empty;
+    public string Project { get; init; } = string.Empty;
     public string Task { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
 }
@@ -53,6 +54,7 @@ public record DeleteTimeLogCommand
 public class CommandManager(
     ICategoryResourceAccess categoryResourceAccess,
     ILogResourceAccess logResourceAccess,
+    IIntervalResourceAccess intervalResourceAccess,
     ISummaryCalculator summaryCalculator)
     : ICommandManager
 {
@@ -96,6 +98,7 @@ public class CommandManager(
             Date = command.Date,
             Time = command.Time,
             Category = command.Category,
+            Project = command.Project,
             Task = command.Task,
             Description = command.Description
         });
@@ -124,6 +127,7 @@ public class CommandManager(
             Date = command.Date,
             Time = command.Time,
             Category = command.Category,
+            Project = command.Project,
             Task = command.Task,
             Description = command.Description
         });
@@ -167,6 +171,11 @@ public class CommandManager(
         {
             throw new Exception("Failed to delete time log");
         }
+        
+        await intervalResourceAccess.Handle(new DeleteIntervals
+        {
+            LogIds = [log.Id]
+        });
         
         await summaryCalculator.Handle(new CalculateLogIntervals
         {

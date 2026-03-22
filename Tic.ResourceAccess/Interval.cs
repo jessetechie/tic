@@ -6,7 +6,7 @@ namespace Tic.ResourceAccess;
 public interface IIntervalResourceAccess
 {
     Task<CommandResult> Handle(SaveIntervals command);
-    Task<CommandResult> Handle(DeleteInterval command);
+    Task<CommandResult> Handle(DeleteIntervals command);
     Task<IntervalsResponse> Handle(IntervalsRequest request);
 }
 
@@ -26,9 +26,9 @@ public record SaveIntervals
     public TimeInterval[] TimeIntervals { get; init; } = [];
 }
 
-public record DeleteInterval
+public record DeleteIntervals
 {
-    public int StartTimeLogId { get; init; }
+    public int[] LogIds { get; init; } = [];
 }
 
 public record IntervalsRequest
@@ -80,11 +80,12 @@ public class IntervalResourceAccess : IIntervalResourceAccess, IDatabaseInitiali
         return CommandResult.Success;
     }
 
-    public async Task<CommandResult> Handle(DeleteInterval command)
+    public async Task<CommandResult> Handle(DeleteIntervals command)
     {
         const string deleteInterval = """
             DELETE FROM Intervals
-            WHERE StartTimeLogId = @StartTimeLogId;
+            WHERE StartTimeLogId IN @LogIds
+            OR EndTimeLogId IN @LogIds;
         """;
         
         using var connection = _dataContext.Connect();

@@ -1,7 +1,7 @@
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Tic.Client.CommandLine.UI;
 using Tic.Manager;
-using TimeLogsResponseItem = Tic.Manager.TimeLogsResponseItem;
 
 namespace Tic.Client.CommandLine.Commands;
 
@@ -13,13 +13,33 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
     public override async Task<int> ExecuteAsync(CommandContext context, InteractiveCommandSettings settings,
         CancellationToken cancellationToken)
     {
+        var headers = new Dictionary<string, string>
+        {
+            ["Marker"] = " ",
+            ["Date"] = "Date",
+            ["Time"] = "Time",
+            ["Category"] = "Category",
+            ["Project"] = "Project",
+            ["Task"] = "Task",
+            ["Duration"] = "Duration",
+            ["Description"] = "Description"
+        };
+
+        var columnOrder = new[] { "Marker", "Date", "Time", "Category", "Project", "Task", "Duration", "Description" };
+
+        var alignments = new Dictionary<string, ColumnAlignment>
+        {
+            ["Duration"] = ColumnAlignment.Right
+        };
+        
         try
         {
             int? selectedLogId = null;
             int? renderStartTop = null;
             var renderedLineCount = 0;
             var statusMessage = string.Empty;
-            var logs = Array.Empty<TimeLogsResponseItem>();
+            var table = new TableBuilder(headers, columnOrder, "  ", alignments);
+            var logs = Array.Empty<LogRow>();
             RenderLayout? renderLayout = null;
             var needsFullRender = true;
 
@@ -28,7 +48,8 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
                 if (needsFullRender)
                 {
                     logs = await LoadLogs();
-
+                    table.CalculateWidthsFromProperties(logs);
+                    
                     if (logs.Length == 0)
                     {
                         ClearPreviousRender(renderStartTop, renderedLineCount);
@@ -43,7 +64,7 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
 
                     ClearPreviousRender(renderStartTop, renderedLineCount);
                     renderStartTop = Console.CursorTop;
-                    renderLayout = RenderLogs(logs, selectedLogId.Value, statusMessage);
+                    renderLayout = RenderLogs(table, logs, selectedLogId.Value, statusMessage);
                     renderedLineCount = renderLayout.LineCount;
                     statusMessage = string.Empty;
                     needsFullRender = false;
@@ -72,10 +93,10 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
 
                 if (key == ConsoleKey.UpArrow)
                 {
-                    var newIndex = InteractiveViewLogic.NavigateUp(selectedIndex);
+                    var newIndex = Navigator.Up(selectedIndex);
                     if (newIndex != selectedIndex)
                     {
-                        if (renderLayout == null || !UpdateSelectedRows(renderLayout, logs, selectedIndex, newIndex))
+                        if (renderLayout == null || !UpdateSelectedRows(table, renderLayout, logs, selectedIndex, newIndex))
                         {
                             needsFullRender = true;
                         }
@@ -86,15 +107,26 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
 
                 if (key == ConsoleKey.DownArrow)
                 {
-                    var newIndex = InteractiveViewLogic.NavigateDown(selectedIndex, logs.Length);
+                    var newIndex = Navigator.Down(selectedIndex, logs.Length);
                     if (newIndex != selectedIndex)
                     {
-                        if (renderLayout == null || !UpdateSelectedRows(renderLayout, logs, selectedIndex, newIndex))
+                        if (renderLayout == null || !UpdateSelectedRows(table, renderLayout, logs, selectedIndex, newIndex))
                         {
                             needsFullRender = true;
                         }
                         selectedLogId = logs[newIndex].Id;
                     }
+                    continue;
+                }
+
+                if (key == ConsoleKey.A)
+                {
+                    var promptStartTop = Console.CursorTop;
+                    var addCommand = PromptAdd();
+                    await commandManager.Handle(addCommand);
+                    ClearPromptRegion(promptStartTop);
+                    statusMessage = "Time log added.";
+                    needsFullRender = true;
                     continue;
                 }
 
@@ -142,34 +174,49 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
         }
     }
 
-    private async Task<TimeLogsResponseItem[]> LoadLogs()
+    private async Task<LogRow[]> LoadLogs()
     {
-        var response = await queryManager.Handle(new TimeLogsQuery());
-        return InteractiveViewLogic.OrderLogs(response.Items);
+        var response = await queryManager.Handle(new TimeLogsTailQuery());
+        return response.Items
+            .OrderBy(x => x.Date).ThenBy(x => x.Time)
+            .Select(LogRow.From)
+            .ToArray();
     }
 
-    private static RenderLayout RenderLogs(TimeLogsResponseItem[] logs, int selectedLogId, string statusMessage)
+    private static RenderLayout RenderLogs(TableBuilder table, LogRow[] logs, int selectedLogId, string statusMessage)
     {
         var startTop = Console.CursorTop;
         var lineCount = 0;
-        var widths = InteractiveViewLogic.ComputeColumnWidths(logs);
 
         AnsiConsole.WriteLine();
         lineCount++;
-        AnsiConsole.WriteLine(InteractiveViewLogic.BuildHeaderRow(widths));
+        AnsiConsole.WriteLine(table.CreateHeaderRow());
         lineCount++;
-        AnsiConsole.WriteLine(InteractiveViewLogic.BuildBorderRow(widths));
+        AnsiConsole.WriteLine(table.CreateSeparatorRow());
         lineCount++;
 
         foreach (var log in logs)
         {
-            AnsiConsole.WriteLine(InteractiveViewLogic.BuildLogRow(widths, log, log.Id == selectedLogId));
+            var values = new Dictionary<string, string>
+            {
+                ["Marker"] = log.Id == selectedLogId ? ">" : " ",
+                ["Date"] = log.Date,
+                ["Time"] = log.Time,
+                ["Category"] = log.Category,
+                ["Project"] = log.Project,
+                ["Task"] = log.Task,
+                ["Duration"] = log.Duration,
+                ["Description"] = log.Description
+            };
+
+            AnsiConsole.WriteLine(table.CreateDataRow(values));
             lineCount++;
         }
 
         AnsiConsole.WriteLine();
         lineCount++;
-        AnsiConsole.MarkupLine("[grey]Use [bold]Up/Down[/] to move selection, [bold]e[/] to edit, [bold]d[/] to delete, [bold]r[/] to refresh, [bold]q[/] to quit.[/]");
+        AnsiConsole.MarkupLine("[grey]Use [bold]Up/Down[/] to move selection, [bold]a[/] to add, [bold]e[/] to edit, [bold]d[/] to delete, [bold]r[/] to refresh, [bold]q[/] to quit.[/]");
+        AnsiConsole.MarkupLine("[grey]Use [bold]Up/Down[/] to move selection, [bold]a[/] to add, [bold]e[/] to edit, [bold]d[/] to delete, [bold]r[/] to refresh, [bold]q[/] to quit.[/]");
         lineCount++;
 
         if (string.IsNullOrWhiteSpace(statusMessage))
@@ -186,13 +233,12 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
             LineCount = lineCount,
             RowStartTop = startTop + 3,
             InputTop = startTop + lineCount,
-            ClearWidth = Math.Max(Console.WindowWidth - 1, 1),
-            Widths = widths
+            ClearWidth = Math.Max(Console.WindowWidth - 1, 1)
         };
     }
 
     // Returns false if cursor manipulation failed so the caller can fall back to a full re-render.
-    private static bool UpdateSelectedRows(RenderLayout layout, TimeLogsResponseItem[] logs, int oldIndex, int newIndex)
+    private static bool UpdateSelectedRows(TableBuilder table, RenderLayout layout, LogRow[] logs, int oldIndex, int newIndex)
     {
         if (Console.IsOutputRedirected)
         {
@@ -201,8 +247,8 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
 
         try
         {
-            RenderRow(layout, logs[oldIndex], oldIndex, false);
-            RenderRow(layout, logs[newIndex], newIndex, true);
+            RenderRow(table, layout, logs[oldIndex], oldIndex, false);
+            RenderRow(table, layout, logs[newIndex], newIndex, true);
             Console.SetCursorPosition(0, Math.Min(layout.InputTop, Console.BufferHeight - 1));
             return true;
         }
@@ -212,7 +258,7 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
         }
     }
 
-    private static void RenderRow(RenderLayout layout, TimeLogsResponseItem log, int rowIndex, bool isSelected)
+    private static void RenderRow(TableBuilder table, RenderLayout layout, LogRow log, int rowIndex, bool isSelected)
     {
         var rowTop = layout.RowStartTop + rowIndex;
         if (rowTop < 0 || rowTop >= Console.BufferHeight)
@@ -223,7 +269,20 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
         Console.SetCursorPosition(0, rowTop);
         Console.Write(new string(' ', layout.ClearWidth));
         Console.SetCursorPosition(0, rowTop);
-        Console.Write(InteractiveViewLogic.BuildLogRow(layout.Widths, log, isSelected));
+        
+        var values = new Dictionary<string, string>
+        {
+            ["Marker"] = isSelected ? ">" : " ",
+            ["Date"] = log.Date,
+            ["Time"] = log.Time,
+            ["Category"] = log.Category,
+            ["Project"] = log.Project,
+            ["Task"] = log.Task,
+            ["Duration"] = log.Duration,
+            ["Description"] = log.Description
+        };
+
+        AnsiConsole.WriteLine(table.CreateDataRow(values));
     }
 
     private static void ClearPreviousRender(int? startTop, int lineCount)
@@ -299,13 +358,49 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
         return ConsoleKey.Escape;
     }
 
-    private static UpdateTimeLogCommand PromptEdit(TimeLogsResponseItem log)
+    private static AddTimeLogCommand PromptAdd()
     {
+        var date = PromptDate("Date", Converter.DisplayValue(DateOnly.FromDateTime(DateTime.Now)));
+        var time = PromptTime("Time", Converter.DisplayValue(TimeOnly.FromDateTime(DateTime.Now)));
+
+        var category = AnsiConsole.Prompt(
+            new TextPrompt<string>("Category").AllowEmpty());
+        var project = AnsiConsole.Prompt(
+            new TextPrompt<string>("Project").AllowEmpty());
+        var task = AnsiConsole.Prompt(
+            new TextPrompt<string>("Task").AllowEmpty());
+        var description = AnsiConsole.Prompt(
+            new TextPrompt<string>("Description").AllowEmpty());
+
+        return new AddTimeLogCommand
+        {
+            Date = date,
+            Time = time,
+            Category = category,
+            Project = project,
+            Task = task,
+            Description = description
+        };
+    }
+    
+    private static UpdateTimeLogCommand PromptEdit(LogRow log)
+    {
+        //TODO: Currently we can't edit a log to clear a value.
+        //If we leave it blank, this is considered accepting the default value.
+        //There is a PR to allow setting .EditableDefaultValue(true)
+        //and it has been merged, but a release has not been made.
+        //https://github.com/spectreconsole/spectre.console/pull/2016
+        //This will put the existing value in the text entry for editing.
+        //Theoretically this will allow setting an empty value.
+        //In the meantime, we can set a placeholder empty value, like "-".
+        
         var date = PromptDate("Date", log.Date);
         var time = PromptTime("Time", log.Time);
 
         var category = AnsiConsole.Prompt(
             new TextPrompt<string>("Category").DefaultValue(log.Category).AllowEmpty());
+        var project = AnsiConsole.Prompt(
+            new TextPrompt<string>("Project").DefaultValue(log.Project).AllowEmpty());
         var task = AnsiConsole.Prompt(
             new TextPrompt<string>("Task").DefaultValue(log.Task).AllowEmpty());
         var description = AnsiConsole.Prompt(
@@ -317,44 +412,45 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
             Date = date,
             Time = time,
             Category = category,
+            Project = project,
             Task = task,
             Description = description
         };
     }
 
-    private static DateOnly PromptDate(string label, DateOnly defaultValue)
+    private static DateOnly PromptDate(string label, string defaultValue)
     {
         while (true)
         {
             var value = AnsiConsole.Prompt(
                 new TextPrompt<string>($"{label} (yyyy-MM-dd)")
-                    .DefaultValue(defaultValue.ToString("yyyy-MM-dd")));
-            if (DateOnly.TryParse(value, out var date))
+                    .DefaultValue(defaultValue));
+            if (Converter.TryParseDate(value, out var date, out var error))
             {
                 return date;
             }
-            AnsiConsole.MarkupLine("[red]Invalid date. Use yyyy-MM-dd.[/]");
+            AnsiConsole.MarkupLine($"[red]{error}[/]");
         }
     }
-
-    private static TimeOnly PromptTime(string label, TimeOnly defaultValue)
+    
+    private static TimeOnly PromptTime(string label, string defaultValue)
     {
         while (true)
         {
             var value = AnsiConsole.Prompt(
-                new TextPrompt<string>($"{label} (HH:mm:ss)")
-                    .DefaultValue(defaultValue.ToString("HH:mm:ss")));
-            if (TimeOnly.TryParse(value, out var time))
+                new TextPrompt<string>($"{label} (HH:mm)")
+                    .DefaultValue(defaultValue));
+            if (Converter.TryParseTime(value, out var time, out var error))
             {
                 return time;
             }
-            AnsiConsole.MarkupLine("[red]Invalid time. Use HH:mm:ss.[/]");
+            AnsiConsole.MarkupLine($"[red]{error}[/]");
         }
     }
 
-    private static bool PromptDeleteConfirmation(TimeLogsResponseItem log)
+    private static bool PromptDeleteConfirmation(LogRow log)
     {
-        return AnsiConsole.Confirm($"Delete log {log.Id} at {log.Date:yyyy-MM-dd} {log.Time:HH\\:mm\\:ss}?", false);
+        return AnsiConsole.Confirm($"Delete log {log.Id} at {log.Date} {log.Time}?", false);
     }
 
     private sealed record RenderLayout
@@ -363,6 +459,5 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
         public int RowStartTop { get; init; }
         public int InputTop { get; init; }
         public int ClearWidth { get; init; }
-        public required ColumnWidths Widths { get; init; }
     }
 }

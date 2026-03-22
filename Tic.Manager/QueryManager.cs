@@ -6,6 +6,7 @@ public interface IQueryManager
 {
     Task<QueryResults<CategoriesResponseItem>> Handle(CategoriesQuery query);
     Task<QueryResults<TimeLogsResponseItem>> Handle(TimeLogsQuery query);
+    Task<QueryResults<TimeLogsResponseItem>> Handle(TimeLogsTailQuery query);
     Task<DaySummaryResponse> Handle(DaySummaryQuery query);
 }
 
@@ -27,11 +28,30 @@ public record TimeLogsQuery
     public int[] Ids { get; init; } = [];
     public Tuple<DateOnly, DateOnly> DateRange { get; init; } = new(DateOnly.MinValue, DateOnly.MaxValue);
     public string[] Categories { get; init; } = [];
+    public string[] Projects { get; init; } = [];
     public string[] Tasks { get; init; } = [];
+}
+
+public record TimeLogsTailQuery
+{
+    public int Count { get; init; } = 20;
 }
 
 public record TimeLogsResponseItem : Tic.ResourceAccess.TimeLogsResponseItem
 {
+    public TimeLogsResponseItem() { }
+    public TimeLogsResponseItem(Tic.ResourceAccess.TimeLogsResponseItem source, TimeInterval? interval)
+    {
+        Id = source.Id;
+        Date = source.Date;
+        Time = source.Time;
+        Category = source.Category;
+        Project = source.Project;
+        Task = source.Task;
+        Description = source.Description;
+        Duration = interval?.Duration ?? TimeSpan.Zero;
+    }
+    
     public TimeSpan Duration { get; init; }
 }
 
@@ -40,7 +60,26 @@ public record DaySummaryQuery
     public DateOnly Date { get; init; }
 }
 
-public record DaySummaryResponse : Tic.ResourceAccess.DaySummaryResponse;
+public record DaySummaryResponse : Tic.ResourceAccess.DaySummaryResponse
+{
+    public new DayTaskSummary[] DayTaskSummaries { get; } = [];
+    public DaySummaryResponse(Tic.ResourceAccess.DaySummaryResponse source)
+    {
+        DayTaskSummaries = source.DayTaskSummaries.Select(x => new DayTaskSummary(x)).ToArray();
+    }
+}
+
+public record DayTaskSummary : Tic.ResourceAccess.DayTaskSummary
+{
+    public DayTaskSummary(Tic.ResourceAccess.DayTaskSummary source)
+    {
+        Date = source.Date;
+        Duration = source.Duration;
+        Category = source.Category;
+        Task = source.Task;
+        Descriptions = source.Descriptions;
+    }
+}
 
 public class QueryManager(ICategoryResourceAccess categoryResourceAccess,
     ILogResourceAccess logResourceAccess, IIntervalResourceAccess intervalResourceAccess, 
@@ -76,6 +115,7 @@ public class QueryManager(ICategoryResourceAccess categoryResourceAccess,
             Ids = query.Ids,
             DateRange = query.DateRange,
             Categories = query.Categories,
+            Projects = query.Projects,
             Tasks = query.Tasks
         });
         
@@ -87,20 +127,33 @@ public class QueryManager(ICategoryResourceAccess categoryResourceAccess,
         return new QueryResults<TimeLogsResponseItem>
         {
             Items = logsResponse.Items
-                .Select(x => new TimeLogsResponseItem
-                {
-                    Id = x.Id,
-                    Date = x.Date,
-                    Time = x.Time,
-                    Category = x.Category,
-                    Task = x.Task,
-                    Description = x.Description,
-                    Duration = intervalsResponse.Items
-                        .Where(y => y.StartTimeLogId == x.Id)
-                        .Select(y => y.Duration)
-                        .FirstOrDefault()
-                })
+                .Select(x => new TimeLogsResponseItem(x, intervalsResponse.Items
+                    .FirstOrDefault(y => y.StartTimeLogId == x.Id)))
                 .ToArray()
+        };
+    }
+
+    public async Task<QueryResults<TimeLogsResponseItem>> Handle(TimeLogsTailQuery query)
+    {
+        var logsResponse = await logResourceAccess.Handle(new TimeLogsTailRequest
+        {
+            Count = query.Count
+        });
+        
+        var intervalsResponse = await intervalResourceAccess.Handle(new IntervalsRequest
+        {
+            DateRange = logsResponse.Items.Length > 0
+                ? new Tuple<DateOnly, DateOnly>(logsResponse.Items.Min(x => x.Date), logsResponse.Items.Max(x => x.Date))
+                : new Tuple<DateOnly, DateOnly>(DateOnly.MinValue, DateOnly.MaxValue)
+        });
+        
+        return new QueryResults<TimeLogsResponseItem>
+        {
+            Items = logsResponse.Items
+                .Select(x => new TimeLogsResponseItem(x, intervalsResponse.Items
+                    .FirstOrDefault(y => y.StartTimeLogId == x.Id)))
+                .ToArray()
+
         };
     }
 
@@ -110,11 +163,7 @@ public class QueryManager(ICategoryResourceAccess categoryResourceAccess,
         {
             Date = query.Date
         });
-        
-        return new DaySummaryResponse
-        {
-            DaySummary = response.DaySummary,
-            DayTaskSummaries = response.DayTaskSummaries
-        };
+
+        return new DaySummaryResponse(response);
     }
 }

@@ -1,5 +1,6 @@
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Tic.Client.CommandLine.UI;
 using Tic.Manager;
 
 namespace Tic.Client.CommandLine.Commands;
@@ -17,7 +18,7 @@ public sealed class SummaryDayCommand(IQueryManager queryManager) : AsyncCommand
     {
         try
         {
-            if (!TryParseDate(settings.Date, out var date, out var error))
+            if (!Converter.TryParseDate(settings.Date, out var date, out var error))
             {
                 AnsiConsole.MarkupLine($"[red]{Markup.Escape(error)}[/]");
                 return -1;
@@ -31,23 +32,37 @@ public sealed class SummaryDayCommand(IQueryManager queryManager) : AsyncCommand
             var rows = response.DayTaskSummaries
                 .OrderBy(x => x.Category)
                 .ThenBy(x => x.Task)
-                .Select(x => new SummaryRow
+                .Select(x => new DaySummaryRow
                 {
                     Category = x.Category,
                     Task = x.Task,
-                    Duration = FormatDuration(x.Duration),
+                    Duration = Converter.DisplayValue(x.Duration),
                     Descriptions = string.Join("; ", x.Descriptions.Where(y => !string.IsNullOrWhiteSpace(y)))
                 })
                 .ToArray();
 
-            var categoryWidth = Math.Max("Category".Length, rows.Select(x => x.Category.Length).DefaultIfEmpty(0).Max());
-            var taskWidth = Math.Max("Task".Length, rows.Select(x => x.Task.Length).DefaultIfEmpty(0).Max());
-            var durationWidth = Math.Max("Duration".Length, rows.Select(x => x.Duration.Length).DefaultIfEmpty(0).Max());
+            var headers = new Dictionary<string, string>
+            {
+                ["Category"] = "Category",
+                ["Task"] = "Task", 
+                ["Duration"] = "Duration",
+                ["Descriptions"] = "Descriptions"
+            };
 
-            AnsiConsole.WriteLine($"Date: {date:yyyy-MM-dd}");
+            var columnOrder = new[] { "Category", "Task", "Duration", "Descriptions" };
+            
+            var alignments = new Dictionary<string, ColumnAlignment>
+            {
+                ["Duration"] = ColumnAlignment.Right
+            };
+
+            var calculator = new TableBuilder(headers, columnOrder, "  ", alignments);
+            calculator.CalculateWidthsFromProperties(rows);
+
+            AnsiConsole.WriteLine($"Date: {Converter.DisplayValue(date)}");
             AnsiConsole.WriteLine();
-            AnsiConsole.WriteLine($"{"Category".PadRight(categoryWidth)}  {"Task".PadRight(taskWidth)}  {"Duration".PadLeft(durationWidth)}  Descriptions");
-            AnsiConsole.WriteLine($"{new string('-', categoryWidth)}  {new string('-', taskWidth)}  {new string('-', durationWidth)}  ------------");
+            AnsiConsole.WriteLine(calculator.CreateHeaderRow());
+            AnsiConsole.WriteLine(calculator.CreateSeparatorRow());
 
             if (rows.Length == 0)
             {
@@ -57,12 +72,19 @@ public sealed class SummaryDayCommand(IQueryManager queryManager) : AsyncCommand
             {
                 foreach (var row in rows)
                 {
-                    AnsiConsole.WriteLine($"{row.Category.PadRight(categoryWidth)}  {row.Task.PadRight(taskWidth)}  {row.Duration.PadLeft(durationWidth)}  {row.Descriptions}");
+                    var values = new Dictionary<string, string>
+                    {
+                        ["Category"] = row.Category,
+                        ["Task"] = row.Task,
+                        ["Duration"] = row.Duration,
+                        ["Descriptions"] = row.Descriptions
+                    };
+                    AnsiConsole.WriteLine(calculator.CreateDataRow(values));
                 }
             }
 
             AnsiConsole.WriteLine();
-            AnsiConsole.WriteLine($"Total Duration: {FormatDuration(response.DaySummary.TotalDuration)}");
+            AnsiConsole.WriteLine($"Total Duration: {Converter.DisplayValue(response.DaySummary.TotalDuration)}");
 
             return 0;
         }
@@ -72,38 +94,4 @@ public sealed class SummaryDayCommand(IQueryManager queryManager) : AsyncCommand
             return -1;
         }
     }
-
-    private static bool TryParseDate(string? value, out DateOnly date, out string error)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            date = DateOnly.FromDateTime(DateTime.Today);
-            error = string.Empty;
-            return true;
-        }
-
-        if (DateOnly.TryParse(value, out date))
-        {
-            error = string.Empty;
-            return true;
-        }
-
-        error = "Invalid --date value. Use a valid date like 2026-03-21.";
-        return false;
-    }
-
-    private static string FormatDuration(TimeSpan duration)
-    {
-        var totalHours = (int)duration.TotalHours;
-        return $"{totalHours:00}:{duration.Minutes:00}:{duration.Seconds:00}";
-    }
-
-    private sealed record SummaryRow
-    {
-        public string Category { get; init; } = string.Empty;
-        public string Task { get; init; } = string.Empty;
-        public string Duration { get; init; } = string.Empty;
-        public string Descriptions { get; init; } = string.Empty;
-    }
 }
-

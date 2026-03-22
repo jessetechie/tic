@@ -9,6 +9,7 @@ public interface ILogResourceAccess
     Task<CommandResult> Handle(EditTimeLog editTimeLog);
     Task<CommandResult> Handle(DeleteTimeLog deleteTimeLog);
     Task<TimeLogsResponse> Handle(TimeLogsRequest timeLogsRequest);
+    Task<TimeLogsResponse> Handle(TimeLogsTailRequest timeLogsTailRequest);
 }
 
 public abstract record TimeLog
@@ -16,6 +17,7 @@ public abstract record TimeLog
     public DateOnly Date { get; init; }
     public TimeOnly Time { get; init; }
     public string Category { get; init; } = string.Empty;
+    public string Project { get; init; } = string.Empty;
     public string Task { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
 }
@@ -37,7 +39,13 @@ public record TimeLogsRequest
     public int[] Ids { get; init; } = [];
     public Tuple<DateOnly, DateOnly> DateRange { get; init; } = new(DateOnly.MinValue, DateOnly.MaxValue);
     public string[] Categories { get; init; } = [];
+    public string[] Projects { get; init; } = [];
     public string[] Tasks { get; init; } = [];
+}
+
+public record TimeLogsTailRequest
+{
+    public int Count { get; init; } = 20;
 }
 
 public record TimeLogsResponse
@@ -65,8 +73,8 @@ public class LogResourceAccess : ILogResourceAccess, IDatabaseInitializer
     public async Task<CommandResult> Handle(AddTimeLog addTimeLog)
     {
         const string insertLog = """
-            INSERT INTO TimeLogs (Date, Time, Category, Task, Description)
-            VALUES (@Date, @Time, @Category, @Task, @Description);
+            INSERT INTO TimeLogs (Date, Time, Category, Project, Task, Description)
+            VALUES (@Date, @Time, @Category, @Project, @Task, @Description);
             """;
         
         using var connection = _dataContext.Connect();
@@ -79,7 +87,8 @@ public class LogResourceAccess : ILogResourceAccess, IDatabaseInitializer
     {
         const string updateLog = """
             UPDATE TimeLogs
-            SET Date = @Date, Time = @Time, Category = @Category, Task = @Task, Description = @Description
+            SET Date = @Date, Time = @Time, Category = @Category, 
+                Project = @Project, Task = @Task, Description = @Description
             WHERE Id = @Id;
             """;
         
@@ -104,7 +113,7 @@ public class LogResourceAccess : ILogResourceAccess, IDatabaseInitializer
         var builder = ApplySpecification(timeLogsRequest);
 
         var selectTemplate = builder.AddTemplate("""
-            SELECT Id, Date, Time, Category, Task, Description
+            SELECT Id, Date, Time, Category, Project, Task, Description
             FROM TimeLogs
             /**where**/
             """);
@@ -121,7 +130,7 @@ public class LogResourceAccess : ILogResourceAccess, IDatabaseInitializer
             TotalCount = totalCount
         };
     }
-    
+
     private static SqlBuilder ApplySpecification(TimeLogsRequest timeLogsRequest)
     {
         var builder = new SqlBuilder();
@@ -148,6 +157,11 @@ public class LogResourceAccess : ILogResourceAccess, IDatabaseInitializer
         {
             builder = builder.Where("Category IN @Categories", new { timeLogsRequest.Categories });
         }
+
+        if (timeLogsRequest.Projects.Length > 0)
+        {
+            builder = builder.Where("Project IN @Projects", new { timeLogsRequest.Projects });
+        }
         
         if (timeLogsRequest.Tasks.Length > 0)
         {
@@ -155,6 +169,31 @@ public class LogResourceAccess : ILogResourceAccess, IDatabaseInitializer
         }
         
         return builder;
+    }
+    
+    public async Task<TimeLogsResponse> Handle(TimeLogsTailRequest timeLogsTailRequest)
+    {
+        var builder = new SqlBuilder();
+        var parameters = new { Count = timeLogsTailRequest.Count };
+        var selectTemplate = builder.AddTemplate("""
+            SELECT Id, Date, Time, Category, Project, Task, Description
+            FROM TimeLogs
+            ORDER BY Date DESC, Time DESC
+            LIMIT @Count
+            """, parameters);
+        
+        var countTemplate = builder.AddTemplate("SELECT COUNT(*) FROM TimeLogs ORDER BY Date DESC, Time DESC LIMIT @Count;",
+            parameters);
+        
+        using var connection = _dataContext.Connect();
+        var logs = await connection.QueryAsync<TimeLogsResponseItem>(selectTemplate.RawSql, selectTemplate.Parameters);
+        var totalCount = await connection.ExecuteScalarAsync<int>(countTemplate.RawSql, countTemplate.Parameters);
+        
+        return new TimeLogsResponse
+        {
+            Items = logs.ToArray(),
+            TotalCount = totalCount
+        };
     }
 
     public async Task Init()
@@ -165,6 +204,7 @@ public class LogResourceAccess : ILogResourceAccess, IDatabaseInitializer
                 Date TEXT NOT NULL,
                 Time TEXT NOT NULL,
                 Category TEXT NOT NULL,
+                Project TEXT NOT NULL,
                 Task TEXT NOT NULL,
                 Description TEXT NOT NULL
             );
