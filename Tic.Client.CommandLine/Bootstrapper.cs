@@ -26,21 +26,17 @@ public static class Bootstrapper
         );
         
         services.AddSingleton<IDataContext, DataContext>();
-        services.AddSingleton<ILogResourceAccess, LogResourceAccess>();
-        services.AddSingleton<ICategoryResourceAccess, CategoryResourceAccess>();
-        services.AddSingleton<IIntervalResourceAccess, IntervalResourceAccess>();
-        services.AddSingleton<ISummaryResourceAccess, SummaryResourceAccess>();
         services.AddSingleton<ISummaryCalculator, SummaryCalculator>();
         services.AddSingleton<ICommandManager, CommandManager>();
         services.AddSingleton<IQueryManager, QueryManager>();
         services.AddSingleton<SchemaFactory>();
 
         var registrar = new TypeRegistrar(services);
-        var resolver = registrar.Build();
-        
+
+        using var resolver = (TypeResolver)registrar.Build();
         var schemaFactory = (SchemaFactory)resolver.Resolve(typeof(SchemaFactory))!;
-        schemaFactory.Init().Wait();
-        
+        schemaFactory.Init().GetAwaiter().GetResult();
+
         return registrar;
     }
 }

@@ -280,7 +280,23 @@ public class InteractiveCommand(ICommandManager commandManager, IQueryManager qu
 
     private static ConsoleKey ReadInteractionKey()
     {
-        return Console.ReadKey(intercept: true).Key;
+        if (Console.IsInputRedirected)
+        {
+            AnsiConsole.MarkupLine("[red]Interactive mode requires an interactive terminal. Standard input is redirected.[/]");
+            Environment.Exit(1);
+        }
+
+        try
+        {
+            return Console.ReadKey(intercept: true).Key;
+        }
+        catch (InvalidOperationException)
+        {
+            AnsiConsole.MarkupLine("[red]Interactive mode requires an interactive terminal. Unable to read key input.[/]");
+            Environment.Exit(1);
+        }
+        
+        return ConsoleKey.Escape;
     }
 
     private static UpdateTimeLogCommand PromptEdit(TimeLogsResponseItem log)

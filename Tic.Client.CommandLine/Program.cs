@@ -26,5 +26,4 @@ app.Configure(config =>
         .WithDescription("Start an interactive command line interface.");
 });
 
-app.Run(args);
-return 0;
+return app.Run(args);

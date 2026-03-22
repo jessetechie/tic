@@ -151,7 +151,7 @@ public class InteractiveViewLogicTests
     // ── Row building ──────────────────────────────────────────────────────────
 
     [Fact]
-    public void BuildLogRow_marks_selected_row_with_asterisk()
+    public void BuildLogRow_marks_selected_row_with_arrow()
     {
         var widths = MakeWidths();
         var row = InteractiveViewLogic.BuildLogRow(widths, MakeLog(1), isSelected: true);
