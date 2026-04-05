@@ -1,7 +1,7 @@
 ---
-description: "Use when creating or modifying test code in Tic.Engine.Tests, Tic.ResourceAccess.Tests, or Tic.Tests.Shared, including xUnit tests and in-memory SQLite setup."
-name: "Tic Test Guidelines"
-applyTo: "Tic.Engine.Tests/**/*.cs,Tic.ResourceAccess.Tests/**/*.cs,Tic.Tests.Shared/**/*.cs"
+description: "Use when creating or modifying test code in Tik.Engine.Tests, Tik.ResourceAccess.Tests, or Tik.Tests.Shared, including xUnit tests and in-memory SQLite setup."
+name: "Tik Test Guidelines"
+applyTo: "Tik.Engine.Tests/**/*.cs,Tik.ResourceAccess.Tests/**/*.cs,Tik.Tests.Shared/**/*.cs"
 ---
 # Test Guidelines
 
@@ -9,7 +9,7 @@ applyTo: "Tic.Engine.Tests/**/*.cs,Tic.ResourceAccess.Tests/**/*.cs,Tic.Tests.Sh
 - Name test methods in descriptive, behavior-first style (for example: `can_add_time_log`).
 - Keep test methods `async Task` when calling async APIs.
 - Keep Arrange/Act/Assert flow clear with minimal incidental logic inside each test.
-- Prefer deterministic test data (fixed dates/times and explicit expected durations/counts).
+- Prefer deterministik test data (fixed dates/times and explicit expected durations/counts).
 
 ## SQLite Test Setup
 
@@ -22,4 +22,4 @@ applyTo: "Tic.Engine.Tests/**/*.cs,Tic.ResourceAccess.Tests/**/*.cs,Tic.Tests.Sh
 
 - Keep cross-layer integration in tests intentional: Engine tests may use ResourceAccess + TestDataContext, while ResourceAccess tests should validate persistence behavior directly.
 - Do not move business logic into tests; tests should verify externally observable behavior.
-- Keep shared test infrastructure concerns in `Tic.Tests.Shared` and keep it lightweight.
+- Keep shared test infrastructure concerns in `Tik.Tests.Shared` and keep it lightweight.

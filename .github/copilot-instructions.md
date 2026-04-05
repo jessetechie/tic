@@ -9,11 +9,11 @@
 
 ## Architecture
 - Maintain current layering and dependency direction:
-  - Tic.Shared: shared primitives only (no higher-layer dependencies)
-  - Tic.ResourceAccess: persistence and schema initialization (Dapper + SQLite)
-  - Tic.Engine: summary/domain calculations over resource-access data
-  - Tic.Manager: command/query orchestration over engine/resource access
-  - Tic.Client.CommandLine: Spectre.Console CLI entrypoint and DI composition
+  - Tik.Shared: shared primitives only (no higher-layer dependencies)
+  - Tik.ResourceAccess: persistence and schema initialization (Dapper + SQLite)
+  - Tik.Engine: summary/domain calculations over resource-access data
+  - Tik.Manager: command/query orchestration over engine/resource access
+  - Tik.Client.CommandLine: Spectre.Console CLI entrypoint and DI composition
 - Do not introduce reverse references from lower layers to higher layers.
 - Keep business rules in Engine/Manager, and persistence concerns in ResourceAccess.
 
@@ -22,8 +22,8 @@
   - dotnet build
   - dotnet test
 - Useful focused test commands:
-  - dotnet test Tic.Engine.Tests
-  - dotnet test Tic.ResourceAccess.Tests
+  - dotnet test Tik.Engine.Tests
+  - dotnet test Tik.ResourceAccess.Tests
 
 ## Conventions
 - Manager commands currently throw when underlying CommandResult is not successful; preserve this behavior unless intentionally refactoring error handling end-to-end.
@@ -36,11 +36,11 @@
 - Initialize schema explicitly in tests before issuing queries/commands (Init() for relevant resources).
 
 ## Key Pattern References
-- Tic.Client.CommandLine/Bootstrapper.cs
-- Tic.Manager/CommandManager.cs
-- Tic.Manager/QueryManager.cs
-- Tic.Engine/SummaryCalculator.cs
-- Tic.ResourceAccess/Category.cs
-- Tic.ResourceAccess/DataContext.cs
-- Tic.ResourceAccess.Tests/LogResourceAccessTests.cs
-- Tic.Tests.Shared/TestDataContext.cs
+- Tik.Client.CommandLine/Bootstrapper.cs
+- Tik.Manager/CommandManager.cs
+- Tik.Manager/QueryManager.cs
+- Tik.Engine/SummaryCalculator.cs
+- Tik.ResourceAccess/Category.cs
+- Tik.ResourceAccess/DataContext.cs
+- Tik.ResourceAccess.Tests/LogResourceAccessTests.cs
+- Tik.Tests.Shared/TestDataContext.cs

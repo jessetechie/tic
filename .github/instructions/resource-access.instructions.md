@@ -1,11 +1,11 @@
 ---
-description: "Use when editing Tic.ResourceAccess, Tic.ResourceAccess.Tests, or Tic.Tests.Shared code that touches Dapper, SQLite schema initialization, query filtering, or persistence contracts."
-name: "Tic Resource Access Guidelines"
-applyTo: "Tic.ResourceAccess/**/*.cs,Tic.ResourceAccess.Tests/**/*.cs,Tic.Tests.Shared/**/*.cs"
+description: "Use when editing Tik.ResourceAccess, Tik.ResourceAccess.Tests, or Tik.Tests.Shared code that touches Dapper, SQLite schema initialization, query filtering, or persistence contracts."
+name: "Tik Resource Access Guidelines"
+applyTo: "Tik.ResourceAccess/**/*.cs,Tik.ResourceAccess.Tests/**/*.cs,Tik.Tests.Shared/**/*.cs"
 ---
 # Resource Access Guidelines
 
-- Keep persistence concerns in `Tic.ResourceAccess`; do not add manager or engine business rules in this layer.
+- Keep persistence concerns in `Tik.ResourceAccess`; do not add manager or engine business rules in this layer.
 - Follow the existing file pattern in resource classes: resource interface, request/response/command records, and implementation in the same file.
 - Keep nullable reference type safety explicit: initialize non-nullable strings to `string.Empty` and arrays to `[]` in records.
 - Keep command-style resource methods `Task<CommandResult>` and return `CommandResult.Success` or `CommandResult.Error(...)` instead of throwing for normal data-path failures.

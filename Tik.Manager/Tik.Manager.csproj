@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>14</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Tik.Engine\Tik.Engine.csproj" />
+      <ProjectReference Include="..\Tik.ResourceAccess\Tik.ResourceAccess.csproj" />
+      <ProjectReference Include="..\Tik.Shared\Tik.Shared.csproj" />
+    </ItemGroup>
+
+</Project>
